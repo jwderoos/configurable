@@ -1,0 +1,19 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Unsafe call to private method jwderoos\\Configurable\\tests\\Service\\ConfigurableService\:\:getConfigOptions\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: tests/Service/ConfigurableService.php
+
+		-
+			message: '#^Unsafe call to private method jwderoos\\Configurable\\tests\\Service\\OtherConfigurableService\:\:getConfigOptions\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: tests/Service/OtherConfigurableService.php
+
+		-
+			message: '#^Unsafe call to private method jwderoos\\Configurable\\tests\\Service\\ThirdConfigurableService\:\:getConfigOptions\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: tests/Service/ThirdConfigurableService.php

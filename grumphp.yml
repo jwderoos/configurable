@@ -38,6 +38,13 @@ grumphp:
       multiline: true
       additional_modifiers: ''
 
+    infection:
+      show_mutations: true
+      verbose: true
+      mutators: []
+      min_msi: 100
+      min_covered_msi: 100
+
     phpcpd:
       directory:
         - 'src/'
@@ -65,13 +72,27 @@ grumphp:
       exclude: []
 
     phpmnd:
+      directory: src
+      whitelist_patterns: []
+      exclude: []
+      exclude_name: []
+      exclude_path: []
+      extensions: []
+      hint: false
+      ignore_funcs: []
+      ignore_numbers: []
+      ignore_strings: []
+      strings: false
+      triggered_by: ['php']
 
     phpstan:
-      configuration: phpstan.neon.dist
+      configuration: phpstan.neon
       triggered_by:
         - 'php'
 
     phpunit:
+
+    rector:
 
     securitychecker_enlightn:
     securitychecker_roave:

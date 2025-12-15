@@ -48,8 +48,20 @@ jobs:
 
     # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
     # Docs: https://getcomposer.org/doc/articles/scripts.md
-    - name: Run grumphp suite
-      run: vendor/bin/grumphp run
+    - name: Run grumphp composer,file_size,phpcpd,phpcs,phpmnd,securitychecker_enlightn,securitychecker_roave,yamllint
+      run: vendor/bin/grumphp run --tasks=composer,file_size,phpcpd,phpcs,phpmnd,securitychecker_enlightn,securitychecker_roave,yamllint
+
+    - name: Run grumphp phpstan
+      run: vendor/bin/grumphp run --tasks=phpstan
+
+    - name: Run grumphp phpunit
+      run: vendor/bin/grumphp run --tasks=phpunit
+
+    - name: Run grumphp infection
+      run: vendor/bin/grumphp run --tasks=infection
+
+    - name: Run grumphp rector
+      run: vendor/bin/grumphp run --tasks=rector
 
     # - name: Run test suite
     #   run: composer run-script test

@@ -17,6 +17,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Stop default Redis service
+      # The ubuntu-latest image has a pre-installed redis-server system service
+      # that runs automatically and is likely the old version causing conflicts.
+      run: sudo service redis-server stop || true
+
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
 

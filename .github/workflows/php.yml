@@ -17,6 +17,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Setup PHP with compatible Redis extension
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3'
+        extensions: |
+            redis:6.1.4 # Explicitly install version 6.1.4 or newer
+        # link to documentation for shivammathur/setup-php:
+        # github.com
+
+#    - name: Stop default Redis service
+#      # The ubuntu-latest image has a pre-installed redis-server system service
+#      # that runs automatically and is likely the old version causing conflicts.
+#      run: sudo service redis-server stop || true
+
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
 

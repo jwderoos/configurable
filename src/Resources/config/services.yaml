@@ -1,0 +1,8 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # Register all classes in the Service/ directory
+    jwderoos\Configurable\:
+        resource: '../../src/Registry/'

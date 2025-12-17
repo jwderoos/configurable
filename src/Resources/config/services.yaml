@@ -6,3 +6,7 @@ services:
     # Register all classes in the Service/ directory
     jwderoos\Configurable\:
         resource: '../../src/Registry/'
+
+    jwderoos\Configurable\Registry\ConfigurableServiceRegistry:
+        arguments:
+            $services: !tagged_iterator  jwderoos.configurable.service

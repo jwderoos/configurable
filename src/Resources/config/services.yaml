@@ -3,7 +3,6 @@ services:
         autowire: true
         autoconfigure: true
 
-    # Register all classes in the Service/ directory
     jwderoos\Configurable\Registry\:
         resource: '../../Registry/'
 

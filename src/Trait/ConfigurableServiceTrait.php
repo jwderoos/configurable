@@ -17,7 +17,7 @@ trait ConfigurableServiceTrait
     /**
      * @return string[]
      */
-    private static function getConfigOptions(): array
+    protected static function getConfigOptions(): array
     {
         $reflectionClass = new ReflectionClass(static::class);
         $constants = $reflectionClass->getConstants();

@@ -9,6 +9,7 @@ use Doctrine\Common\Collections\Collection;
 use jwderoos\Configurable\Exception\ConfigurationPropertyNotInitializedException;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationPropertyInterface;
 use jwderoos\Configurable\Interface\ConfigurableServiceInterface;
+use jwderoos\Configurable\Registry\ConfigurableServiceRegistry;
 
 /**
  * @template P of ConfigurableServiceConfigurationPropertyInterface
@@ -59,18 +60,12 @@ trait ConfigurationPropertiesTrait
         );
     }
 
+    /**
+     * @deprecated Use {@see ConfigurableServiceRegistry::prepareConfiguration()} instead.
+     */
     public function prepareConfiguration(ConfigurableServiceInterface $configurableService): void
     {
-        $optionsResolver = $configurableService::getConfigurableOptions();
-        /** @var class-string<P> $class */
-        $class = $this->getPropertyClass();
-        foreach ($optionsResolver->getDefinedOptions() as $configurableOption) {
-            if (!$this->properties->offsetExists($configurableOption)) {
-                $property = new $class();
-                $property->setName($configurableOption);
-                $this->setProperty($property);
-            }
-        }
+        ConfigurableServiceRegistry::prepareConfigurationForService($this, $configurableService);
     }
 
     public function propertyExists(string $propertyName): bool
@@ -105,7 +100,12 @@ trait ConfigurationPropertiesTrait
 
         $value = $this->getPropertyValue($propertyName);
 
-        return is_array($value) ? implode(', ', $value) : (string) $value;
+        return is_array($value)
+            ? implode(', ', array_map(
+                static fn (mixed $item): string => is_scalar($item) || $item === null ? (string) $item : '',
+                $value
+            ))
+            : (string) $value;
     }
 
     /**
@@ -123,22 +123,11 @@ trait ConfigurationPropertiesTrait
         return $configurableService::supportsConfiguration($this);
     }
 
+    /**
+     * @deprecated Use {@see ConfigurableServiceRegistry::validateConfiguration()} instead.
+     */
     public function validateConfiguration(ConfigurableServiceInterface $configurableService): bool
     {
-        if (!$this->isSupported($configurableService)) {
-            return true;
-        }
-
-        $requiredOptions = $configurableService::getConfigurableOptions()->getRequiredOptions();
-        foreach ($requiredOptions as $requiredOption) {
-            if (
-                !$this->propertyExists($requiredOption) ||
-                !$this->getProperty($requiredOption)->hasValue()
-            ) {
-                return false;
-            }
-        }
-
-        return true;
+        return ConfigurableServiceRegistry::validateConfigurationForService($this, $configurableService);
     }
 }

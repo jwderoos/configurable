@@ -1,0 +1,11 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    jwderoos\Configurable\Registry\:
+        resource: '../../Registry/'
+
+    jwderoos\Configurable\Registry\ConfigurableServiceRegistry:
+        arguments:
+            $services: !tagged_iterator jwderoos.configurable.service

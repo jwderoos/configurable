@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace jwderoos\Configurable\tests\Trait;
 
+use jwderoos\Configurable\Registry\ConfigurableServiceRegistry;
 use jwderoos\Configurable\tests\Entity\Configuration;
 use jwderoos\Configurable\tests\Entity\InheritedConfiguration;
 use jwderoos\Configurable\tests\Entity\Property;
@@ -19,7 +20,7 @@ final class InheritedConfigurationPropertiesTraitTest extends TestCase
         $inheritedConfiguration = new InheritedConfiguration();
         $configurableService = new ConfigurableService();
 
-        $inheritedConfiguration->prepareConfiguration($configurableService);
+        ConfigurableServiceRegistry::prepareConfigurationForService($inheritedConfiguration, $configurableService);
 
         $properties = $inheritedConfiguration->getProperties();
         $this->assertNotEmpty($properties->toArray());
@@ -37,9 +38,8 @@ final class InheritedConfigurationPropertiesTraitTest extends TestCase
         $configuration = new Configuration();
         $inheritedConfiguration->setParentConfig($configuration);
 
-        $configurableService = new ConfigurableService();
-
-        $inheritedConfiguration->prepareConfiguration($configurableService);
+        $configurableServiceRegistry = new ConfigurableServiceRegistry([new ConfigurableService()]);
+        $configurableServiceRegistry->prepareConfiguration($inheritedConfiguration);
 
         $this->assertNotEmpty($inheritedConfiguration->getProperties());
         $this->assertInstanceOf(Configuration::class, $inheritedConfiguration->getParentConfig());

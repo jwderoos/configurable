@@ -8,6 +8,7 @@ use jwderoos\Configurable\Exception\ConfigurationPropertyNotInitializedException
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationInterface;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationPropertyInterface;
 use jwderoos\Configurable\Interface\ConfigurableServiceInterface;
+use jwderoos\Configurable\Registry\ConfigurableServiceRegistry;
 
 /**
  * @template P of ConfigurableServiceConfigurationPropertyInterface
@@ -16,7 +17,6 @@ trait InheritedConfigurationPropertiesTrait
 {
     /** @use ConfigurationPropertiesTrait<P> */
     use ConfigurationPropertiesTrait {
-        prepareConfiguration as private basePrepareConfiguration;
         propertyExists as private basePropertyExists;
     }
 
@@ -81,14 +81,15 @@ trait InheritedConfigurationPropertiesTrait
         );
     }
 
+    /**
+     * @deprecated Use {@see ConfigurableServiceRegistry::prepareConfiguration()} instead.
+     */
     public function prepareConfiguration(ConfigurableServiceInterface $configurableService): void
     {
-        if (
-            $this->getParent() instanceof ConfigurableServiceConfigurationInterface
-        ) {
-            $this->getParent()->prepareConfiguration($configurableService);
+        if ($this->getParent() instanceof ConfigurableServiceConfigurationInterface) {
+            ConfigurableServiceRegistry::prepareConfigurationForService($this->getParent(), $configurableService);
         }
 
-        $this->basePrepareConfiguration($configurableService);
+        ConfigurableServiceRegistry::prepareConfigurationForService($this, $configurableService);
     }
 }

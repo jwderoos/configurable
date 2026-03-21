@@ -89,4 +89,60 @@ final class ConfigurableServiceRegistryTest extends TestCase
             $this->configurableServiceRegistry->getConfigurableServicesByConfiguration(new UnsupportedConfiguration())
         );
     }
+
+    public function testPrepareConfigurationCreatesProperties(): void
+    {
+        $configuration = new Configuration();
+
+        $this->configurableServiceRegistry->prepareConfiguration($configuration);
+
+        $this->assertTrue($configuration->propertyExists('configurationOption1'));
+        $this->assertTrue($configuration->propertyExists('configurationOption2'));
+    }
+
+    public function testPrepareConfigurationIsIdempotent(): void
+    {
+        $configuration = new Configuration();
+
+        $this->configurableServiceRegistry->prepareConfiguration($configuration);
+        $this->configurableServiceRegistry->prepareConfiguration($configuration);
+
+        $this->assertCount(2, $configuration->getProperties());
+    }
+
+    public function testPrepareConfigurationWithInheritedPreparesParentAndChild(): void
+    {
+        $configuration = new Configuration();
+        $inheritedConfiguration = new InheritedConfiguration();
+        $inheritedConfiguration->setParentConfig($configuration);
+
+        $this->configurableServiceRegistry->prepareConfiguration($inheritedConfiguration);
+
+        $this->assertNotEmpty($configuration->getProperties());
+        $this->assertNotEmpty($inheritedConfiguration->getProperties());
+    }
+
+    public function testValidateConfigurationReturnsFalseWhenRequiredOptionMissing(): void
+    {
+        $configuration = new Configuration();
+
+        $this->assertFalse($this->configurableServiceRegistry->validateConfiguration($configuration));
+    }
+
+    public function testValidateConfigurationReturnsTrueWhenAllRequiredOptionsPresent(): void
+    {
+        $configuration = new Configuration();
+        $this->configurableServiceRegistry->prepareConfiguration($configuration);
+        $configuration->getProperty('configurationOption1')->setValue('value1');
+        $configuration->getProperty('configurationOption2')->setValue(['value2']);
+
+        $this->assertTrue($this->configurableServiceRegistry->validateConfiguration($configuration));
+    }
+
+    public function testValidateConfigurationReturnsTrueForUnsupportedConfiguration(): void
+    {
+        $this->assertTrue(
+            $this->configurableServiceRegistry->validateConfiguration(new UnsupportedConfiguration())
+        );
+    }
 }

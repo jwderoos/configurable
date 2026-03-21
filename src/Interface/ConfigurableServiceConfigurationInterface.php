@@ -10,8 +10,14 @@ interface ConfigurableServiceConfigurationInterface
 {
     public function getId(): ?int;
 
+    /**
+     * @deprecated Use ConfigurableServiceRegistry::prepareConfiguration() instead.
+     */
     public function prepareConfiguration(ConfigurableServiceInterface $configurableService): void;
 
+    /**
+     * @deprecated Use ConfigurableServiceRegistry::validateConfiguration() instead.
+     */
     public function validateConfiguration(ConfigurableServiceInterface $configurableService): bool;
 
     /**

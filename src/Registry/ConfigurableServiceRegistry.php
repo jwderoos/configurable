@@ -35,10 +35,7 @@ class ConfigurableServiceRegistry
     public function getConfigurableServicesByConfiguration(
         ConfigurableServiceConfigurationInterface $configurableServiceConfiguration
     ): array {
-        $class = $configurableServiceConfiguration::class;
-        if (str_starts_with($class, 'Proxies\\__CG__\\')) {
-            $class = substr($class, strlen('Proxies\\__CG__\\'));
-        }
+        $class = $this->resolveClass($configurableServiceConfiguration);
 
         $services = [];
         if (
@@ -53,5 +50,89 @@ class ConfigurableServiceRegistry
         }
 
         return array_merge($this->servicesByService[$class], $services);
+    }
+
+    public function prepareConfiguration(
+        ConfigurableServiceConfigurationInterface $configurableServiceConfiguration
+    ): void {
+        if (
+            $configurableServiceConfiguration instanceof InheritedConfigurableServiceConfigurationInterface
+            && $configurableServiceConfiguration->getParent() instanceof ConfigurableServiceConfigurationInterface
+        ) {
+            $this->prepareConfiguration($configurableServiceConfiguration->getParent());
+
+            // Create override slots on the child for all parent services
+            $parentClass = $this->resolveClass($configurableServiceConfiguration->getParent());
+            foreach ($this->servicesByService[$parentClass] ?? [] as $service) {
+                self::prepareConfigurationForService($configurableServiceConfiguration, $service);
+            }
+        }
+
+        $class = $this->resolveClass($configurableServiceConfiguration);
+        foreach ($this->servicesByService[$class] ?? [] as $service) {
+            self::prepareConfigurationForService($configurableServiceConfiguration, $service);
+        }
+    }
+
+    public function validateConfiguration(
+        ConfigurableServiceConfigurationInterface $configurableServiceConfiguration
+    ): bool {
+        $class = $this->resolveClass($configurableServiceConfiguration);
+        foreach ($this->servicesByService[$class] ?? [] as $service) {
+            if (!self::validateConfigurationForService($configurableServiceConfiguration, $service)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static function prepareConfigurationForService(
+        ConfigurableServiceConfigurationInterface $configurableServiceConfiguration,
+        ConfigurableServiceInterface $configurableService
+    ): void {
+        $optionsResolver = $configurableService::getConfigurableOptions();
+        $class = $configurableServiceConfiguration->getPropertyClass();
+        $localProperties = $configurableServiceConfiguration->getProperties();
+        foreach ($optionsResolver->getDefinedOptions() as $option) {
+            if (!$localProperties->offsetExists($option)) {
+                $property = new $class();
+                $property->setName($option);
+                $configurableServiceConfiguration->setProperty($property);
+            }
+        }
+    }
+
+    public static function validateConfigurationForService(
+        ConfigurableServiceConfigurationInterface $configurableServiceConfiguration,
+        ConfigurableServiceInterface $configurableService
+    ): bool {
+        if (!$configurableService::supportsConfiguration($configurableServiceConfiguration)) {
+            return true;
+        }
+
+        foreach ($configurableService::getConfigurableOptions()->getRequiredOptions() as $option) {
+            $hasValue = $configurableServiceConfiguration->propertyExists($option)
+                && $configurableServiceConfiguration->getProperty($option)->hasValue();
+            if (!$hasValue) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return class-string
+     */
+    private function resolveClass(ConfigurableServiceConfigurationInterface $configurableServiceConfiguration): string
+    {
+        $class = $configurableServiceConfiguration::class;
+        if (!str_starts_with($class, 'Proxies\\__CG__\\')) {
+            return $class;
+        }
+
+        /** @var class-string */
+        return substr($class, strlen('Proxies\\__CG__\\'));
     }
 }

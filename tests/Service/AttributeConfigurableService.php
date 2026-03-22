@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace jwderoos\Configurable\tests\Service;
 
 use jwderoos\Configurable\Attribute\ConfigOption;
+use jwderoos\Configurable\Enum\ConfigOptionType;
 use jwderoos\Configurable\Attribute\ConfigurableService;
 use jwderoos\Configurable\Interface\ConfigurableServiceInterface;
 use jwderoos\Configurable\Trait\ConfigurableServiceTrait;
@@ -20,7 +21,7 @@ class AttributeConfigurableService implements ConfigurableServiceInterface
 
     public const NON_CONFIG_CONSTANT = 'ignored';
 
-    #[ConfigOption(type: 'array', required: false, default: [])]
+    #[ConfigOption(type: ConfigOptionType::Array, required: false, default: [])]
     public const OPTION_TAGS = 'optionTags';
 
     #[ConfigOption(required: false, default: 'low', allowedValues: ['low', 'high'])]

@@ -7,6 +7,7 @@ namespace jwderoos\Configurable\Trait;
 use LogicException;
 use ReflectionClass;
 use jwderoos\Configurable\Attribute\ConfigOption;
+use jwderoos\Configurable\Enum\ConfigOptionType;
 use jwderoos\Configurable\Attribute\ConfigurableService;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -87,7 +88,7 @@ trait ConfigurableServiceTrait
             $attributeOptionNames[] = $value;
 
             $optionsResolver->setDefined($value);
-            $optionsResolver->setAllowedTypes($value, $configOption->type ?? 'string');
+            $optionsResolver->setAllowedTypes($value, ($configOption->type ?? ConfigOptionType::String)->value);
 
             if ($configOption->description !== null) {
                 $optionsResolver->setInfo($value, $configOption->description);

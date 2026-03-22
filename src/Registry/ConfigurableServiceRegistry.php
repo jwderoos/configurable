@@ -6,7 +6,6 @@ namespace jwderoos\Configurable\Registry;
 
 use LogicException;
 use ReflectionClass;
-use ReflectionMethod;
 use ReflectionNamedType;
 use jwderoos\Configurable\Attribute\ConfigurableConfiguration;
 use jwderoos\Configurable\Attribute\ConfigurableService;

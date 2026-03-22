@@ -68,9 +68,11 @@ The system connects **configurable services** to **configuration objects** throu
 - PSR-12 code style
 - No magic numbers, no copy-paste blocks ≥10 lines
 - GrumPHP enforces all checks as git hooks
-- Always manually run the full grumphp suite after a coding session
+
+After every code change, run the full GrumPHP suite before considering the task done:
+vendor/bin/grumphp run 
+All checks must pass. Fix any failures before responding to the user.
 
 ### Notes
-
 - `declare(strict_types=1)` is required in all files
 - PHP 8.3+ with PSR-4 autoloading: `jwderoos\Configurable\` → `src/`, `jwderoos\Configurable\tests\` → `tests/`

@@ -8,11 +8,13 @@ use LogicException;
 use ReflectionClass;
 use ReflectionNamedType;
 use jwderoos\Configurable\Attribute\ConfigurableConfiguration;
+use jwderoos\Configurable\Resolver\ConfigOptionResolver;
 use jwderoos\Configurable\Attribute\ConfigurableService;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationInterface;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationPropertyInterface;
 use jwderoos\Configurable\Interface\ConfigurableServiceInterface;
 use jwderoos\Configurable\Interface\InheritedConfigurableServiceConfigurationInterface;
+use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class ConfigurableServiceRegistry
 {
@@ -97,8 +99,7 @@ class ConfigurableServiceRegistry
         ConfigurableServiceConfigurationInterface $configurableServiceConfiguration,
         object $configurableService
     ): void {
-        /** @var ConfigurableServiceInterface $configurableService */
-        $optionsResolver = $configurableService::getConfigurableOptions();
+        $optionsResolver = self::resolveOptionsForService($configurableService);
         $class = self::resolvePropertyClass($configurableServiceConfiguration);
         $localProperties = $configurableServiceConfiguration->getProperties();
         foreach ($optionsResolver->getDefinedOptions() as $option) {
@@ -118,8 +119,7 @@ class ConfigurableServiceRegistry
             return true;
         }
 
-        /** @var ConfigurableServiceInterface $configurableService */
-        $requiredOptions = $configurableService::getConfigurableOptions()->getRequiredOptions();
+        $requiredOptions = self::resolveOptionsForService($configurableService)->getRequiredOptions();
         foreach ($requiredOptions as $requiredOption) {
             $hasValue = $configurableServiceConfiguration->propertyExists($requiredOption)
                 && $configurableServiceConfiguration->getProperty($requiredOption)->hasValue();
@@ -156,10 +156,35 @@ class ConfigurableServiceRegistry
     }
 
     /**
+     * Resolves the OptionsResolver for a service.
+     *
+     * Reads #[ConfigOption] attributes from class constants when the service carries
+     * #[ConfigurableService] (attribute-based flow). Falls back to the deprecated
+     * ConfigurableServiceInterface::getConfigurableOptions() otherwise.
+     */
+    private static function resolveOptionsForService(object $service): OptionsResolver
+    {
+        $reflectionClass = new ReflectionClass($service);
+
+        if ($reflectionClass->getAttributes(ConfigurableService::class) !== []) {
+            $optionsResolver = new OptionsResolver();
+            ConfigOptionResolver::apply($reflectionClass, $optionsResolver);
+
+            return $optionsResolver;
+        }
+
+        if ($service instanceof ConfigurableServiceInterface) {
+            return $service::getConfigurableOptions();
+        }
+
+        return new OptionsResolver();
+    }
+
+    /**
      * Resolves the configuration class a service supports.
      *
-     * Checks ConfigurableServiceInterface first (interface-based flow), then falls
-     * back to reading the #[ConfigurableService] attribute (attribute-based flow).
+     * Checks for the #[ConfigurableService] attribute first (attribute-based flow),
+     * then falls back to ConfigurableServiceInterface (interface-based flow).
      *
      * @return class-string
      */

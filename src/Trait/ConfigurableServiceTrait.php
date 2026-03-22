@@ -6,12 +6,14 @@ namespace jwderoos\Configurable\Trait;
 
 use LogicException;
 use ReflectionClass;
-use jwderoos\Configurable\Attribute\ConfigOption;
-use jwderoos\Configurable\Enum\ConfigOptionType;
 use jwderoos\Configurable\Attribute\ConfigurableService;
+use jwderoos\Configurable\Resolver\ConfigOptionResolver;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
+/**
+ * @deprecated
+ */
 trait ConfigurableServiceTrait
 {
     /**
@@ -65,43 +67,10 @@ trait ConfigurableServiceTrait
     public static function getConfigurableOptions(): OptionsResolver
     {
         $optionsResolver = new OptionsResolver();
-
         $reflectionClass = new ReflectionClass(static::class);
 
         // Collect attribute-based options (#[ConfigOption] on class constants).
-        $attributeOptionNames = [];
-        foreach ($reflectionClass->getReflectionConstants() as $reflectionClassConstant) {
-            $attributes = $reflectionClassConstant->getAttributes(ConfigOption::class);
-            if ($attributes === []) {
-                continue;
-            }
-
-            $value = $reflectionClassConstant->getValue();
-            if (!is_string($value)) {
-                continue;
-            }
-
-            /** @var ConfigOption $configOption */
-            $configOption = $attributes[0]->newInstance();
-            $attributeOptionNames[] = $value;
-
-            $optionsResolver->setDefined($value);
-            $optionsResolver->setAllowedTypes($value, ($configOption->type ?? ConfigOptionType::String)->value);
-
-            if ($configOption->description !== null) {
-                $optionsResolver->setInfo($value, $configOption->description);
-            }
-
-            if ($configOption->required) {
-                $optionsResolver->setRequired($value);
-            } elseif ($configOption->default !== null) {
-                $optionsResolver->setDefault($value, $configOption->default);
-            }
-
-            if ($configOption->allowedValues !== null) {
-                $optionsResolver->setAllowedValues($value, $configOption->allowedValues);
-            }
-        }
+        $attributeOptionNames = ConfigOptionResolver::apply($reflectionClass, $optionsResolver);
 
         // Fall back to CONFIG_* convention for constants not covered by an attribute.
         foreach (static::getConfigOptions() as $key => $value) {

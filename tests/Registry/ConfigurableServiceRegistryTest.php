@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace jwderoos\Configurable\tests\Registry;
 
 use LogicException;
+use jwderoos\Configurable\tests\Service\AttributeConfigurableService;
 use jwderoos\Configurable\tests\Service\InvalidCallbackMissingMethodService;
 use jwderoos\Configurable\tests\Service\InvalidCallbackWrongReturnTypeService;
 use jwderoos\Configurable\tests\Service\ValidSubtypeCallbackService;
@@ -230,5 +231,49 @@ final class ConfigurableServiceRegistryTest extends TestCase
         $this->expectExceptionMessageMatches('/exactly one parameter/');
 
         new ConfigurableServiceRegistry([new InvalidCallbackTooManyParamsService()]);
+    }
+
+    public function testPrepareConfigurationForAttributeBasedService(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $configurableServiceRegistry = new ConfigurableServiceRegistry([$attributeConfigurableService]);
+        $configuration = new Configuration();
+
+        $configurableServiceRegistry->prepareConfiguration($configuration);
+
+        $this->assertTrue($configuration->propertyExists('optionName'));
+        $this->assertTrue($configuration->propertyExists('optionTags'));
+        $this->assertTrue($configuration->propertyExists('optionPriority'));
+        $this->assertTrue($configuration->propertyExists('optionDefaultRequired'));
+    }
+
+    public function testValidateConfigurationForAttributeBasedServiceReturnsFalseWhenRequiredMissing(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $configurableServiceRegistry = new ConfigurableServiceRegistry([$attributeConfigurableService]);
+
+        $this->assertFalse($configurableServiceRegistry->validateConfiguration(new Configuration()));
+    }
+
+    public function testValidateConfigurationForAttributeBasedServiceReturnsTrueWhenRequiredPresent(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $configurableServiceRegistry = new ConfigurableServiceRegistry([$attributeConfigurableService]);
+        $configuration = new Configuration();
+        $configurableServiceRegistry->prepareConfiguration($configuration);
+        $configuration->getProperty('optionName')->setValue('value');
+        $configuration->getProperty('optionDefaultRequired')->setValue('value');
+
+        $this->assertTrue($configurableServiceRegistry->validateConfiguration($configuration));
+    }
+
+    public function testValidateConfigurationForServiceReturnsFalseForAttributeServiceWithMissingRequired(): void
+    {
+        $this->assertFalse(
+            ConfigurableServiceRegistry::validateConfigurationForService(
+                new UnsupportedConfiguration(),
+                new AttributeConfigurableService()
+            )
+        );
     }
 }

@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace jwderoos\Configurable\tests\Trait;
 
+use ReflectionClass;
 use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
+use jwderoos\Configurable\Resolver\ConfigOptionResolver;
 use jwderoos\Configurable\tests\Entity\Configuration;
 use jwderoos\Configurable\tests\Service\AttributeConfigurableService;
 use jwderoos\Configurable\tests\Service\ConfigurableService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\OptionsResolver\Exception\InvalidOptionsException;
+use Symfony\Component\OptionsResolver\OptionsResolver;
 
 final class ConfigurableServiceTraitTest extends TestCase
 {
@@ -148,5 +151,20 @@ final class ConfigurableServiceTraitTest extends TestCase
         $this->assertNotContains('ignored', $defined);
         $this->assertContains('optionTags', $defined);
         $this->assertContains('optionPriority', $defined);
+    }
+
+    public function testApplyToOptionsResolverReturnsAllAttributeOptionNames(): void
+    {
+        $optionsResolver = new OptionsResolver();
+        $names = ConfigOptionResolver::apply(
+            new ReflectionClass(AttributeConfigurableService::class),
+            $optionsResolver
+        );
+
+        $this->assertContains('optionName', $names);
+        $this->assertContains('optionTags', $names);
+        $this->assertContains('optionPriority', $names);
+        $this->assertContains('optionDefaultRequired', $names);
+        $this->assertCount(4, $names);
     }
 }

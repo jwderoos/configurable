@@ -6,6 +6,7 @@ namespace jwderoos\Configurable\Trait;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use LogicException;
 use jwderoos\Configurable\Exception\ConfigurationPropertyNotInitializedException;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationPropertyInterface;
 use jwderoos\Configurable\Interface\ConfigurableServiceInterface;
@@ -67,7 +68,7 @@ trait ConfigurationPropertiesTrait
     public function prepareConfiguration(object $configurableService): void
     {
         if (!$configurableService instanceof ConfigurableServiceInterface) {
-            throw new ConfigurationPropertyNotInitializedException(
+            throw new LogicException(
                 $configurableService::class . ' is not a subclass of ' . ConfigurableServiceInterface::class
             );
         }

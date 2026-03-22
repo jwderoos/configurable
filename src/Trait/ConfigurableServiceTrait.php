@@ -15,11 +15,8 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 trait ConfigurableServiceTrait
 {
     /**
-     * Returns the configuration class this service supports.
-     *
-     * When the class carries #[ConfigurableService], the configuration class is
-     * read from the attribute. Override this method when you cannot (or prefer
-     * not to) use the attribute.
+     * @deprecated since 1.3, will be removed in 2.0.
+     *             Use #[ConfigurableService] attribute on your service class instead.
      *
      * @return class-string<ConfigurableServiceConfigurationInterface>
      */
@@ -64,6 +61,7 @@ trait ConfigurableServiceTrait
         return $options;
     }
 
+    /** @deprecated since 1.3, will be removed in 2.0. Use #[ConfigOption] attributes on class constants instead. */
     public static function getConfigurableOptions(): OptionsResolver
     {
         $optionsResolver = new OptionsResolver();
@@ -126,6 +124,11 @@ trait ConfigurableServiceTrait
         return $optionsResolver;
     }
 
+    /**
+     * @deprecated since 1.3, will be removed in 2.0.
+     *             Use #[ConfigurableService] attribute on your service class instead.
+     *             Implement ConfigurableServiceTrait without this interface for attribute-based configuration.
+     */
     public static function supportsConfiguration(
         ConfigurableServiceConfigurationInterface $configurableServiceConfiguration
     ): bool {

@@ -64,8 +64,14 @@ trait ConfigurationPropertiesTrait
      * @deprecated since 1.3, will be removed in 2.0.
      *             Use {@see ConfigurableServiceRegistry::prepareConfiguration()} instead.
      */
-    public function prepareConfiguration(ConfigurableServiceInterface $configurableService): void
+    public function prepareConfiguration(object $configurableService): void
     {
+        if (!$configurableService instanceof ConfigurableServiceInterface) {
+            throw new ConfigurationPropertyNotInitializedException(
+                $configurableService::class . ' is not a subclass of ' . ConfigurableServiceInterface::class
+            );
+        }
+
         ConfigurableServiceRegistry::prepareConfigurationForService($this, $configurableService);
     }
 

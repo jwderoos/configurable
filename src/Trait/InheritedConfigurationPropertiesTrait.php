@@ -82,7 +82,8 @@ trait InheritedConfigurationPropertiesTrait
     }
 
     /**
-     * @deprecated Use {@see ConfigurableServiceRegistry::prepareConfiguration()} instead.
+     * @deprecated since 1.3, will be removed in 2.0.
+     *             Use {@see ConfigurableServiceRegistry::prepareConfiguration()} instead.
      */
     public function prepareConfiguration(ConfigurableServiceInterface $configurableService): void
     {

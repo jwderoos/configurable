@@ -4,17 +4,48 @@ declare(strict_types=1);
 
 namespace jwderoos\Configurable\Trait;
 
+use LogicException;
 use ReflectionClass;
+use jwderoos\Configurable\Attribute\ConfigOption;
+use jwderoos\Configurable\Attribute\ConfigurableService;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationInterface;
-use jwderoos\Configurable\Interface\ConfigurableServiceInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 trait ConfigurableServiceTrait
 {
-    /** @return class-string<ConfigurableServiceInterface> */
-    abstract public static function getConfigurationClass(): string;
+    /**
+     * Returns the configuration class this service supports.
+     *
+     * When the class carries #[ConfigurableService], the configuration class is
+     * read from the attribute. Override this method when you cannot (or prefer
+     * not to) use the attribute.
+     *
+     * @return class-string<ConfigurableServiceConfigurationInterface>
+     */
+    public static function getConfigurationClass(): string
+    {
+        $reflectionClass = new ReflectionClass(static::class);
+        $attributes = $reflectionClass->getAttributes(ConfigurableService::class);
+
+        if ($attributes !== []) {
+            /** @var ConfigurableService $attr */
+            $attr = $attributes[0]->newInstance();
+
+            return $attr->configurationClass;
+        }
+
+        throw new LogicException(sprintf(
+            'Class "%s" must either carry #[ConfigurableService(configurationClass: ...)]'
+                . ' or override getConfigurationClass().',
+            static::class
+        ));
+    }
 
     /**
+     * Returns CONFIG_* constants defined on the class, keyed by constant name.
+     *
+     * @deprecated since 1.3, will be removed in 2.0. Use #[ConfigOption] attributes on class constants instead.
+     *
      * @return string[]
      */
     protected static function getConfigOptions(): array
@@ -34,12 +65,52 @@ trait ConfigurableServiceTrait
 
     public static function getConfigurableOptions(): OptionsResolver
     {
-        $configOptions = static::getConfigOptions();
-
         $optionsResolver = new OptionsResolver();
-        $optionsResolver->setDefined($configOptions);
 
-        foreach ($configOptions as $key => $value) {
+        $reflectionClass = new ReflectionClass(static::class);
+
+        // Collect attribute-based options (#[ConfigOption] on class constants).
+        $attributeOptionNames = [];
+        foreach ($reflectionClass->getReflectionConstants() as $reflectionClassConstant) {
+            $attributes = $reflectionClassConstant->getAttributes(ConfigOption::class);
+            if ($attributes === []) {
+                continue;
+            }
+
+            $value = $reflectionClassConstant->getValue();
+            if (!is_string($value)) {
+                continue;
+            }
+
+            /** @var ConfigOption $configOption */
+            $configOption = $attributes[0]->newInstance();
+            $attributeOptionNames[] = $value;
+
+            $optionsResolver->setDefined($value);
+            $optionsResolver->setAllowedTypes($value, $configOption->type ?? 'string');
+
+            if ($configOption->description !== null) {
+                $optionsResolver->setInfo($value, $configOption->description);
+            }
+
+            if ($configOption->required) {
+                $optionsResolver->setRequired($value);
+            } elseif ($configOption->default !== null) {
+                $optionsResolver->setDefault($value, $configOption->default);
+            }
+
+            if ($configOption->allowedValues !== null) {
+                $optionsResolver->setAllowedValues($value, $configOption->allowedValues);
+            }
+        }
+
+        // Fall back to CONFIG_* convention for constants not covered by an attribute.
+        foreach (static::getConfigOptions() as $key => $value) {
+            if (in_array($value, $attributeOptionNames, true)) {
+                continue;
+            }
+
+            $optionsResolver->setDefined($value);
             $optionsResolver->setAllowedTypes(
                 $value,
                 str_contains((string) $key, '_ARRAY_') ? 'array' : 'string'
@@ -58,6 +129,7 @@ trait ConfigurableServiceTrait
         ConfigurableServiceConfigurationInterface $configurableServiceConfiguration
     ): bool {
         $class = self::getConfigurationClass();
+
         return $configurableServiceConfiguration instanceof $class;
     }
 }

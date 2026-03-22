@@ -62,7 +62,8 @@ The system connects **configurable services** to **configuration objects** throu
 
 ### Quality Requirements
 
-- PHPStan level 9 (baseline exceptions in `phpstan-baseline.neon`)
+- PHPStan level 9
+- 100% code coverage on phpunit
 - 100% mutation score index (Infection)
 - PSR-12 code style
 - No magic numbers, no copy-paste blocks ≥10 lines

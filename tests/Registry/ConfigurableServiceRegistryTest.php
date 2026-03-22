@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace jwderoos\Configurable\tests\Registry;
 
+use LogicException;
+use jwderoos\Configurable\tests\Service\InvalidCallbackMissingMethodService;
+use jwderoos\Configurable\tests\Service\InvalidCallbackWrongReturnTypeService;
+use jwderoos\Configurable\tests\Service\ValidSubtypeCallbackService;
+use jwderoos\Configurable\tests\Service\InvalidCallbackWrongParamTypeService;
+use jwderoos\Configurable\tests\Service\InvalidCallbackTooManyParamsService;
 use jwderoos\Configurable\tests\Entity\InheritedConfiguration;
 use jwderoos\Configurable\tests\Entity\UnsupportedConfiguration;
+use jwderoos\Configurable\tests\Service\CallbackConfigurableService;
 use jwderoos\Configurable\tests\Service\ConfigurableService;
 use jwderoos\Configurable\tests\Entity\Configuration;
 use jwderoos\Configurable\tests\Service\OtherConfigurableService;
@@ -144,5 +151,84 @@ final class ConfigurableServiceRegistryTest extends TestCase
         $this->assertTrue(
             $this->configurableServiceRegistry->validateConfiguration(new UnsupportedConfiguration())
         );
+    }
+
+    public function testSupportsConfigurationCallbackReturnsTrueSkipsValidation(): void
+    {
+        $callbackConfigurableService = new CallbackConfigurableService(supported: false);
+        $configurableServiceRegistry = new ConfigurableServiceRegistry([$callbackConfigurableService]);
+        $configuration = new Configuration();
+
+        $this->assertTrue($configurableServiceRegistry->validateConfiguration($configuration));
+    }
+
+    public function testSupportsConfigurationCallbackReturnsTrueValidatesRequiredOptions(): void
+    {
+        $callbackConfigurableService = new CallbackConfigurableService(supported: true);
+        $configurableServiceRegistry = new ConfigurableServiceRegistry([$callbackConfigurableService]);
+        $configuration = new Configuration();
+        $configurableServiceRegistry->prepareConfiguration($configuration);
+        $configuration->getProperty('callbackRequiredOption')->setValue('value');
+
+        $this->assertTrue($configurableServiceRegistry->validateConfiguration($configuration));
+    }
+
+    public function testCallbackFalseSkipsValidationWithMissingRequiredOptions(): void
+    {
+        $callbackConfigurableService = new CallbackConfigurableService(supported: false);
+        $configurableServiceRegistry = new ConfigurableServiceRegistry([$callbackConfigurableService]);
+
+        $this->assertTrue($configurableServiceRegistry->validateConfiguration(new Configuration()));
+    }
+
+    public function testValidateConfigurationForServiceReturnsTrueForUnsupportedConfiguration(): void
+    {
+        $this->assertTrue(
+            ConfigurableServiceRegistry::validateConfigurationForService(
+                new UnsupportedConfiguration(),
+                new ConfigurableService()
+            )
+        );
+    }
+
+    public function testRegistryAcceptsCallbackWithSubtypeParameter(): void
+    {
+        $this->expectNotToPerformAssertions();
+
+        new ConfigurableServiceRegistry([new ValidSubtypeCallbackService()]);
+    }
+
+    public function testRegistryThrowsForMissingCallbackMethod(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessageMatches('/does not exist/');
+
+        new ConfigurableServiceRegistry([new InvalidCallbackMissingMethodService()]);
+    }
+
+    public function testRegistryThrowsForCallbackWithWrongReturnType(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessageMatches('/bool return type/');
+        $this->expectExceptionMessageMatches('/got "string"/');
+
+        new ConfigurableServiceRegistry([new InvalidCallbackWrongReturnTypeService()]);
+    }
+
+    public function testRegistryThrowsForCallbackWithWrongParameterType(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessageMatches('/must be typed as/');
+        $this->expectExceptionMessageMatches('/got "string"/');
+
+        new ConfigurableServiceRegistry([new InvalidCallbackWrongParamTypeService()]);
+    }
+
+    public function testRegistryThrowsForCallbackWithWrongParameterCount(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessageMatches('/exactly one parameter/');
+
+        new ConfigurableServiceRegistry([new InvalidCallbackTooManyParamsService()]);
     }
 }

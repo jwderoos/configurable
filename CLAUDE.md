@@ -68,6 +68,7 @@ The system connects **configurable services** to **configuration objects** throu
 - PSR-12 code style
 - No magic numbers, no copy-paste blocks ≥10 lines
 - GrumPHP enforces all checks as git hooks
+- Always manually run the full grumphp suite after a coding session
 
 ### Notes
 

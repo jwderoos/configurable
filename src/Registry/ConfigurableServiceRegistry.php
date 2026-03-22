@@ -6,6 +6,8 @@ namespace jwderoos\Configurable\Registry;
 
 use LogicException;
 use ReflectionClass;
+use ReflectionMethod;
+use ReflectionNamedType;
 use jwderoos\Configurable\Attribute\ConfigurableConfiguration;
 use jwderoos\Configurable\Attribute\ConfigurableService;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationInterface;
@@ -113,17 +115,42 @@ class ConfigurableServiceRegistry
         ConfigurableServiceConfigurationInterface $configurableServiceConfiguration,
         object $configurableService
     ): bool {
-        /** @var ConfigurableServiceInterface $configurableService */
-        if (!$configurableService::supportsConfiguration($configurableServiceConfiguration)) {
+        if (!self::serviceSupportsConfiguration($configurableService, $configurableServiceConfiguration)) {
             return true;
         }
 
-        foreach ($configurableService::getConfigurableOptions()->getRequiredOptions() as $option) {
-            $hasValue = $configurableServiceConfiguration->propertyExists($option)
-                && $configurableServiceConfiguration->getProperty($option)->hasValue();
+        /** @var ConfigurableServiceInterface $configurableService */
+        $requiredOptions = $configurableService::getConfigurableOptions()->getRequiredOptions();
+        foreach ($requiredOptions as $requiredOption) {
+            $hasValue = $configurableServiceConfiguration->propertyExists($requiredOption)
+                && $configurableServiceConfiguration->getProperty($requiredOption)->hasValue();
             if (!$hasValue) {
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    private static function serviceSupportsConfiguration(
+        object $service,
+        ConfigurableServiceConfigurationInterface $configurableServiceConfiguration
+    ): bool {
+        $attributes = (new ReflectionClass($service))->getAttributes(ConfigurableService::class);
+        if ($attributes !== []) {
+            /** @var ConfigurableService $attr */
+            $attr = $attributes[0]->newInstance();
+            if ($attr->supportsConfigurationCallback !== null) {
+                $callback = $attr->supportsConfigurationCallback;
+
+                return $service->$callback($configurableServiceConfiguration);
+            }
+
+            return true;
+        }
+
+        if ($service instanceof ConfigurableServiceInterface) {
+            return $service::supportsConfiguration($configurableServiceConfiguration);
         }
 
         return true;
@@ -145,6 +172,10 @@ class ConfigurableServiceRegistry
             /** @var ConfigurableService $attr */
             $attr = $attributes[0]->newInstance();
 
+            if ($attr->supportsConfigurationCallback !== null) {
+                $this->validateSupportsConfigurationCallback($reflectionClass, $attr->supportsConfigurationCallback);
+            }
+
             return $attr->configurationClass;
         }
 
@@ -157,6 +188,58 @@ class ConfigurableServiceRegistry
                 . ' or carry #[ConfigurableService(configurationClass: ...)] attribute.',
             $service::class
         ));
+    }
+
+    /**
+     * @param ReflectionClass<object> $reflectionClass
+     */
+    private function validateSupportsConfigurationCallback(ReflectionClass $reflectionClass, string $methodName): void
+    {
+        if (!$reflectionClass->hasMethod($methodName)) {
+            throw new LogicException(sprintf(
+                'Service "%s" declares supportsConfigurationCallback: "%s" but that method does not exist.',
+                $reflectionClass->getName(),
+                $methodName,
+            ));
+        }
+
+        $reflectionMethod = $reflectionClass->getMethod($methodName);
+        $parameters = $reflectionMethod->getParameters();
+
+        if (count($parameters) !== 1) {
+            throw new LogicException(sprintf(
+                'Method "%s::%s" must accept exactly one parameter of type %s.',
+                $reflectionClass->getName(),
+                $methodName,
+                ConfigurableServiceConfigurationInterface::class,
+            ));
+        }
+
+        $type = $parameters[0]->getType();
+        $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
+        $expectedType = ConfigurableServiceConfigurationInterface::class;
+
+        if ($typeName !== $expectedType && !is_a($typeName ?? '', $expectedType, true)) {
+            throw new LogicException(sprintf(
+                'Parameter of "%s::%s" must be typed as %s (or a subtype), got "%s".',
+                $reflectionClass->getName(),
+                $methodName,
+                $expectedType,
+                $typeName ?? 'none',
+            ));
+        }
+
+        $returnType = $reflectionMethod->getReturnType();
+        $returnTypeName = $returnType instanceof ReflectionNamedType ? $returnType->getName() : null;
+
+        if ($returnTypeName !== 'bool') {
+            throw new LogicException(sprintf(
+                'Method "%s::%s" must declare a bool return type, got "%s".',
+                $reflectionClass->getName(),
+                $methodName,
+                $returnTypeName ?? 'none',
+            ));
+        }
     }
 
     /**

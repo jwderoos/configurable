@@ -4,17 +4,48 @@ declare(strict_types=1);
 
 namespace jwderoos\Configurable\Trait;
 
+use LogicException;
 use ReflectionClass;
+use jwderoos\Configurable\Attribute\ConfigurableService;
+use jwderoos\Configurable\Resolver\ConfigOptionResolver;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationInterface;
-use jwderoos\Configurable\Interface\ConfigurableServiceInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
+/**
+ * @deprecated
+ */
 trait ConfigurableServiceTrait
 {
-    /** @return class-string<ConfigurableServiceInterface> */
-    abstract public static function getConfigurationClass(): string;
+    /**
+     * @deprecated since 1.3, will be removed in 2.0.
+     *             Use #[ConfigurableService] attribute on your service class instead.
+     *
+     * @return class-string<ConfigurableServiceConfigurationInterface>
+     */
+    public static function getConfigurationClass(): string
+    {
+        $reflectionClass = new ReflectionClass(static::class);
+        $attributes = $reflectionClass->getAttributes(ConfigurableService::class);
+
+        if ($attributes !== []) {
+            /** @var ConfigurableService $attr */
+            $attr = $attributes[0]->newInstance();
+
+            return $attr->configurationClass;
+        }
+
+        throw new LogicException(sprintf(
+            'Class "%s" must either carry #[ConfigurableService(configurationClass: ...)]'
+                . ' or override getConfigurationClass().',
+            static::class
+        ));
+    }
 
     /**
+     * Returns CONFIG_* constants defined on the class, keyed by constant name.
+     *
+     * @deprecated since 1.3, will be removed in 2.0. Use #[ConfigOption] attributes on class constants instead.
+     *
      * @return string[]
      */
     protected static function getConfigOptions(): array
@@ -32,14 +63,22 @@ trait ConfigurableServiceTrait
         return $options;
     }
 
+    /** @deprecated since 1.3, will be removed in 2.0. Use #[ConfigOption] attributes on class constants instead. */
     public static function getConfigurableOptions(): OptionsResolver
     {
-        $configOptions = static::getConfigOptions();
-
         $optionsResolver = new OptionsResolver();
-        $optionsResolver->setDefined($configOptions);
+        $reflectionClass = new ReflectionClass(static::class);
 
-        foreach ($configOptions as $key => $value) {
+        // Collect attribute-based options (#[ConfigOption] on class constants).
+        $attributeOptionNames = ConfigOptionResolver::apply($reflectionClass, $optionsResolver);
+
+        // Fall back to CONFIG_* convention for constants not covered by an attribute.
+        foreach (static::getConfigOptions() as $key => $value) {
+            if (in_array($value, $attributeOptionNames, true)) {
+                continue;
+            }
+
+            $optionsResolver->setDefined($value);
             $optionsResolver->setAllowedTypes(
                 $value,
                 str_contains((string) $key, '_ARRAY_') ? 'array' : 'string'
@@ -54,10 +93,16 @@ trait ConfigurableServiceTrait
         return $optionsResolver;
     }
 
+    /**
+     * @deprecated since 1.3, will be removed in 2.0.
+     *             Use #[ConfigurableService] attribute on your service class instead.
+     *             Implement ConfigurableServiceTrait without this interface for attribute-based configuration.
+     */
     public static function supportsConfiguration(
         ConfigurableServiceConfigurationInterface $configurableServiceConfiguration
     ): bool {
         $class = self::getConfigurationClass();
+
         return $configurableServiceConfiguration instanceof $class;
     }
 }

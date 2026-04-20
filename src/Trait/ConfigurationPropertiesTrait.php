@@ -6,6 +6,7 @@ namespace jwderoos\Configurable\Trait;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use LogicException;
 use jwderoos\Configurable\Exception\ConfigurationPropertyNotInitializedException;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationPropertyInterface;
 use jwderoos\Configurable\Interface\ConfigurableServiceInterface;
@@ -61,10 +62,17 @@ trait ConfigurationPropertiesTrait
     }
 
     /**
-     * @deprecated Use {@see ConfigurableServiceRegistry::prepareConfiguration()} instead.
+     * @deprecated since 1.3, will be removed in 2.0.
+     *             Use {@see ConfigurableServiceRegistry::prepareConfiguration()} instead.
      */
-    public function prepareConfiguration(ConfigurableServiceInterface $configurableService): void
+    public function prepareConfiguration(object $configurableService): void
     {
+        if (!$configurableService instanceof ConfigurableServiceInterface) {
+            throw new LogicException(
+                $configurableService::class . ' is not a subclass of ' . ConfigurableServiceInterface::class
+            );
+        }
+
         ConfigurableServiceRegistry::prepareConfigurationForService($this, $configurableService);
     }
 
@@ -124,7 +132,8 @@ trait ConfigurationPropertiesTrait
     }
 
     /**
-     * @deprecated Use {@see ConfigurableServiceRegistry::validateConfiguration()} instead.
+     * @deprecated since 1.3, will be removed in 2.0.
+     *             Use {@see ConfigurableServiceRegistry::validateConfiguration()} instead.
      */
     public function validateConfiguration(ConfigurableServiceInterface $configurableService): bool
     {

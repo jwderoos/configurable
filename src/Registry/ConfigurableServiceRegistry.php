@@ -4,23 +4,31 @@ declare(strict_types=1);
 
 namespace jwderoos\Configurable\Registry;
 
+use LogicException;
+use ReflectionClass;
+use ReflectionNamedType;
+use jwderoos\Configurable\Attribute\ConfigurableConfiguration;
+use jwderoos\Configurable\Resolver\ConfigOptionResolver;
+use jwderoos\Configurable\Attribute\ConfigurableService;
 use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationInterface;
+use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationPropertyInterface;
 use jwderoos\Configurable\Interface\ConfigurableServiceInterface;
 use jwderoos\Configurable\Interface\InheritedConfigurableServiceConfigurationInterface;
+use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class ConfigurableServiceRegistry
 {
-    /** @var ConfigurableServiceInterface[][] */
+    /** @var object[][] */
     private array $servicesByService = [];
 
     /**
-     * @param iterable<ConfigurableServiceInterface> $services
+     * @param iterable<object> $services
      */
     public function __construct(
         iterable $services
     ) {
         foreach ($services as $service) {
-            $class = $service::getConfigurationClass();
+            $class = $this->resolveConfigurationClassForService($service);
             if (!isset($this->servicesByService[$class])) {
                 $this->servicesByService[$class] = [];
             }
@@ -30,7 +38,7 @@ class ConfigurableServiceRegistry
     }
 
     /**
-     * @return ConfigurableServiceInterface[]
+     * @return object[]
      */
     public function getConfigurableServicesByConfiguration(
         ConfigurableServiceConfigurationInterface $configurableServiceConfiguration
@@ -89,10 +97,10 @@ class ConfigurableServiceRegistry
 
     public static function prepareConfigurationForService(
         ConfigurableServiceConfigurationInterface $configurableServiceConfiguration,
-        ConfigurableServiceInterface $configurableService
+        object $configurableService
     ): void {
-        $optionsResolver = $configurableService::getConfigurableOptions();
-        $class = $configurableServiceConfiguration->getPropertyClass();
+        $optionsResolver = self::resolveOptionsForService($configurableService);
+        $class = self::resolvePropertyClass($configurableServiceConfiguration);
         $localProperties = $configurableServiceConfiguration->getProperties();
         foreach ($optionsResolver->getDefinedOptions() as $option) {
             if (!$localProperties->offsetExists($option)) {
@@ -105,21 +113,180 @@ class ConfigurableServiceRegistry
 
     public static function validateConfigurationForService(
         ConfigurableServiceConfigurationInterface $configurableServiceConfiguration,
-        ConfigurableServiceInterface $configurableService
+        object $configurableService
     ): bool {
-        if (!$configurableService::supportsConfiguration($configurableServiceConfiguration)) {
+        if (!self::serviceSupportsConfiguration($configurableService, $configurableServiceConfiguration)) {
             return true;
         }
 
-        foreach ($configurableService::getConfigurableOptions()->getRequiredOptions() as $option) {
-            $hasValue = $configurableServiceConfiguration->propertyExists($option)
-                && $configurableServiceConfiguration->getProperty($option)->hasValue();
+        $requiredOptions = self::resolveOptionsForService($configurableService)->getRequiredOptions();
+        foreach ($requiredOptions as $requiredOption) {
+            $hasValue = $configurableServiceConfiguration->propertyExists($requiredOption)
+                && $configurableServiceConfiguration->getProperty($requiredOption)->hasValue();
             if (!$hasValue) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    private static function serviceSupportsConfiguration(
+        object $service,
+        ConfigurableServiceConfigurationInterface $configurableServiceConfiguration
+    ): bool {
+        $attributes = (new ReflectionClass($service))->getAttributes(ConfigurableService::class);
+        if ($attributes !== []) {
+            /** @var ConfigurableService $attr */
+            $attr = $attributes[0]->newInstance();
+            if ($attr->supportsConfigurationCallback !== null) {
+                $callback = $attr->supportsConfigurationCallback;
+
+                return $service->$callback($configurableServiceConfiguration);
+            }
+
+            return true;
+        }
+
+        if ($service instanceof ConfigurableServiceInterface) {
+            return $service::supportsConfiguration($configurableServiceConfiguration);
+        }
+
+        return true;
+    }
+
+    /**
+     * Resolves the OptionsResolver for a service.
+     *
+     * Reads #[ConfigOption] attributes from class constants when the service carries
+     * #[ConfigurableService] (attribute-based flow). Falls back to the deprecated
+     * ConfigurableServiceInterface::getConfigurableOptions() otherwise.
+     */
+    private static function resolveOptionsForService(object $service): OptionsResolver
+    {
+        $reflectionClass = new ReflectionClass($service);
+
+        if ($reflectionClass->getAttributes(ConfigurableService::class) !== []) {
+            $optionsResolver = new OptionsResolver();
+            ConfigOptionResolver::apply($reflectionClass, $optionsResolver);
+
+            return $optionsResolver;
+        }
+
+        if ($service instanceof ConfigurableServiceInterface) {
+            return $service::getConfigurableOptions();
+        }
+
+        return new OptionsResolver();
+    }
+
+    /**
+     * Resolves the configuration class a service supports.
+     *
+     * Checks for the #[ConfigurableService] attribute first (attribute-based flow),
+     * then falls back to ConfigurableServiceInterface (interface-based flow).
+     *
+     * @return class-string
+     */
+    private function resolveConfigurationClassForService(object $service): string
+    {
+        $reflectionClass = new ReflectionClass($service);
+        $attributes = $reflectionClass->getAttributes(ConfigurableService::class);
+        if ($attributes !== []) {
+            /** @var ConfigurableService $attr */
+            $attr = $attributes[0]->newInstance();
+
+            if ($attr->supportsConfigurationCallback !== null) {
+                $this->validateSupportsConfigurationCallback($reflectionClass, $attr->supportsConfigurationCallback);
+            }
+
+            return $attr->configurationClass;
+        }
+
+        if ($service instanceof ConfigurableServiceInterface) {
+            return $service::getConfigurationClass();
+        }
+
+        throw new LogicException(sprintf(
+            'Service "%s" must implement ConfigurableServiceInterface'
+                . ' or carry #[ConfigurableService(configurationClass: ...)] attribute.',
+            $service::class
+        ));
+    }
+
+    /**
+     * @param ReflectionClass<object> $reflectionClass
+     */
+    private function validateSupportsConfigurationCallback(ReflectionClass $reflectionClass, string $methodName): void
+    {
+        if (!$reflectionClass->hasMethod($methodName)) {
+            throw new LogicException(sprintf(
+                'Service "%s" declares supportsConfigurationCallback: "%s" but that method does not exist.',
+                $reflectionClass->getName(),
+                $methodName,
+            ));
+        }
+
+        $reflectionMethod = $reflectionClass->getMethod($methodName);
+        $parameters = $reflectionMethod->getParameters();
+
+        if (count($parameters) !== 1) {
+            throw new LogicException(sprintf(
+                'Method "%s::%s" must accept exactly one parameter of type %s.',
+                $reflectionClass->getName(),
+                $methodName,
+                ConfigurableServiceConfigurationInterface::class,
+            ));
+        }
+
+        $type = $parameters[0]->getType();
+        $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
+        $expectedType = ConfigurableServiceConfigurationInterface::class;
+
+        if ($typeName !== $expectedType && !is_a($typeName ?? '', $expectedType, true)) {
+            throw new LogicException(sprintf(
+                'Parameter of "%s::%s" must be typed as %s (or a subtype), got "%s".',
+                $reflectionClass->getName(),
+                $methodName,
+                $expectedType,
+                $typeName ?? 'none',
+            ));
+        }
+
+        $returnType = $reflectionMethod->getReturnType();
+        $returnTypeName = $returnType instanceof ReflectionNamedType ? $returnType->getName() : null;
+
+        if ($returnTypeName !== 'bool') {
+            throw new LogicException(sprintf(
+                'Method "%s::%s" must declare a bool return type, got "%s".',
+                $reflectionClass->getName(),
+                $methodName,
+                $returnTypeName ?? 'none',
+            ));
+        }
+    }
+
+    /**
+     * Resolves the property class a configuration uses.
+     *
+     * Reads #[ConfigurableConfiguration(propertyClass: ...)] attribute first (attribute-based
+     * flow), then falls back to getPropertyClass() (interface-based flow).
+     *
+     * @return class-string<ConfigurableServiceConfigurationPropertyInterface>
+     */
+    private static function resolvePropertyClass(
+        ConfigurableServiceConfigurationInterface $configurableServiceConfiguration
+    ): string {
+        $reflectionClass = new ReflectionClass($configurableServiceConfiguration);
+        $attributes = $reflectionClass->getAttributes(ConfigurableConfiguration::class);
+        if ($attributes !== []) {
+            /** @var ConfigurableConfiguration $attr */
+            $attr = $attributes[0]->newInstance();
+
+            return $attr->propertyClass;
+        }
+
+        return $configurableServiceConfiguration->getPropertyClass();
     }
 
     /**

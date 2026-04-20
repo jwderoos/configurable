@@ -1,4 +1,5 @@
 includes:
+    - phpstan-extension.neon
 parameters:
     parallel:
         maximumNumberOfProcesses: 5
@@ -10,5 +11,6 @@ parameters:
     paths:
         - src
         - tests
-    excludePaths: []
+    excludePaths:
+        - tests/Service/InvalidCallback*Service.php
     ignoreErrors: []

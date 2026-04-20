@@ -1,0 +1,7 @@
+services:
+    -
+        class: jwderoos\Configurable\PHPStan\ConfigurableServiceCallbackRule
+        arguments:
+            reflectionProvider: @reflectionProvider
+        tags:
+            - phpstan.rules.rule

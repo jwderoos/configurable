@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace jwderoos\Configurable\tests\Trait;
 
+use ReflectionClass;
+use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
+use jwderoos\Configurable\Resolver\ConfigOptionResolver;
 use jwderoos\Configurable\tests\Entity\Configuration;
+use jwderoos\Configurable\tests\Service\AttributeConfigurableService;
 use jwderoos\Configurable\tests\Service\ConfigurableService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\OptionsResolver\Exception\InvalidOptionsException;
+use Symfony\Component\OptionsResolver\OptionsResolver;
 
 final class ConfigurableServiceTraitTest extends TestCase
 {
@@ -60,5 +65,106 @@ final class ConfigurableServiceTraitTest extends TestCase
 
         $this->expectException(InvalidOptionsException::class);
         $optionsResolver->resolve(['configurationOption1' => []]);
+    }
+
+    public function testGetConfigurableOptionsFromAttributes(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $optionsResolver = $attributeConfigurableService::getConfigurableOptions();
+
+        $defined = $optionsResolver->getDefinedOptions();
+        $this->assertContains('optionName', $defined);
+        $this->assertContains('optionTags', $defined);
+        $this->assertContains('optionPriority', $defined);
+        $this->assertNotContains('ignored', $defined);
+    }
+
+    public function testAttributeConfigOptionDescription(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $optionsResolver = $attributeConfigurableService::getConfigurableOptions();
+
+        $this->assertSame('A required string option', $optionsResolver->getInfo('optionName'));
+    }
+
+    public function testAttributeConfigOptionDefaults(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $optionsResolver = $attributeConfigurableService::getConfigurableOptions();
+
+        $values = $optionsResolver->resolve(['optionName' => 'test', 'optionDefaultRequired' => 'val']);
+
+        $this->assertEquals([], $values['optionTags']);
+        $this->assertEquals('low', $values['optionPriority']);
+    }
+
+    public function testAttributeConfigOptionAllowedValues(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $optionsResolver = $attributeConfigurableService::getConfigurableOptions();
+
+        $this->expectException(InvalidOptionsException::class);
+        $optionsResolver->resolve([
+            'optionName' => 'test',
+            'optionDefaultRequired' => 'val',
+            'optionPriority' => 'invalid',
+        ]);
+    }
+
+    public function testAttributeConfigOptionRequired(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $optionsResolver = $attributeConfigurableService::getConfigurableOptions();
+
+        $this->expectException(MissingOptionsException::class);
+        $optionsResolver->resolve([]);
+    }
+
+    public function testAttributeConfigOptionDefaultRequiredIsTrue(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $optionsResolver = $attributeConfigurableService::getConfigurableOptions();
+
+        $this->expectException(MissingOptionsException::class);
+        $optionsResolver->resolve(['optionName' => 'test']);
+    }
+
+    public function testAttributeConfigOptionTypeEnforced(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $optionsResolver = $attributeConfigurableService::getConfigurableOptions();
+
+        $this->expectException(InvalidOptionsException::class);
+        $optionsResolver->resolve([
+            'optionName' => 'test',
+            'optionDefaultRequired' => 'val',
+            'optionTags' => 'not-an-array',
+        ]);
+    }
+
+    public function testNonAttributedConstantBetweenAttributedOnesIsIgnored(): void
+    {
+        $attributeConfigurableService = new AttributeConfigurableService();
+        $optionsResolver = $attributeConfigurableService::getConfigurableOptions();
+
+        $defined = $optionsResolver->getDefinedOptions();
+        $this->assertNotContains('ignored', $defined);
+        $this->assertContains('optionTags', $defined);
+        $this->assertContains('optionPriority', $defined);
+    }
+
+    public function testApplyToOptionsResolverReturnsAllAttributeOptionNames(): void
+    {
+        $optionsResolver = new OptionsResolver();
+        $names = ConfigOptionResolver::apply(
+            new ReflectionClass(AttributeConfigurableService::class),
+            $optionsResolver
+        );
+
+        $this->assertContains('optionName', $names);
+        $this->assertContains('optionTags', $names);
+        $this->assertContains('optionPriority', $names);
+        $this->assertContains('optionDefaultRequired', $names);
+        $this->assertCount(4, $names);
     }
 }

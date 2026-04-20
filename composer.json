@@ -31,6 +31,13 @@
       "jwderoos\\Configurable\\": "src/"
     }
   },
+  "extra": {
+    "phpstan": {
+      "includes": [
+        "phpstan-extension.neon"
+      ]
+    }
+  },
   "config": {
     "allow-plugins": {
       "phpstan/extension-installer": true,

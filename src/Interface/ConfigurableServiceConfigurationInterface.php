@@ -11,12 +11,12 @@ interface ConfigurableServiceConfigurationInterface
     public function getId(): ?int;
 
     /**
-     * @deprecated Use ConfigurableServiceRegistry::prepareConfiguration() instead.
+     * @deprecated since 1.3, will be removed in 2.0. Use ConfigurableServiceRegistry::prepareConfiguration() instead.
      */
     public function prepareConfiguration(ConfigurableServiceInterface $configurableService): void;
 
     /**
-     * @deprecated Use ConfigurableServiceRegistry::validateConfiguration() instead.
+     * @deprecated since 1.3, will be removed in 2.0. Use ConfigurableServiceRegistry::validateConfiguration() instead.
      */
     public function validateConfiguration(ConfigurableServiceInterface $configurableService): bool;
 
@@ -35,7 +35,11 @@ interface ConfigurableServiceConfigurationInterface
 
     public function getProperty(string $propertyName): ConfigurableServiceConfigurationPropertyInterface;
 
-    /** @return class-string<ConfigurableServiceConfigurationPropertyInterface> */
+    /**
+     * @deprecated since 1.3, will be removed in 2.0.
+     *             Use #[ConfigurableConfiguration(propertyClass: ...)] attribute instead.
+     * @return class-string<ConfigurableServiceConfigurationPropertyInterface>
+     */
     public function getPropertyClass(): string;
 
     /** @return null|string|mixed[] */

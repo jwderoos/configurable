@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+namespace jwderoos\Configurable\tests\Service;
+
+use jwderoos\Configurable\Attribute\ConfigurableService;
+use jwderoos\Configurable\Interface\ConfigurableServiceConfigurationInterface;
+use jwderoos\Configurable\Trait\ConfigurableServiceTrait;
+use jwderoos\Configurable\tests\Entity\Configuration;
+
+#[ConfigurableService(configurationClass: Configuration::class, supportsConfigurationCallback: 'isSupported')]
+class InvalidCallbackTooManyParamsService
+{
+    use ConfigurableServiceTrait;
+
+    public function isSupported(
+        ConfigurableServiceConfigurationInterface $configurableServiceConfiguration,
+        string $extra
+    ): bool {
+        return true;
+    }
+}
